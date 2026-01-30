@@ -1,53 +1,42 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Login from '../pages/auth/Login';
+
+import MainLayout from '../components/layout/MainLayout';
+
+// Pages
 import PortfolioDashboard from '../pages/dashboard/PortfolioDashboard';
-import Sidebar from '../components/layout/Sidebar';
-import Topbar from '../components/layout/Topbar';
+import ProjectRanking from '../pages/dashboard/ProjectRanking';
+import DecisionLog from '../pages/dashboard/DecisionLog';
 
-const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          {children}
-        </main>
-      </div>
-    </div>
-  );
-};
+import ProjectList from '../pages/projects/ProjectList';
+import ProjectDetails from '../pages/projects/ProjectDetails';
+import ProjectSimulation from '../pages/projects/ProjectSimulation';
+import RiskOverview from '../pages/dashboard/RiskOverview';
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isAuthenticated = !!localStorage.getItem('token');
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
-};
+// (Optional) Login
+// import Login from '../pages/auth/Login';
 
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <MainLayout>
-              <PortfolioDashboard />
-            </MainLayout>
-          </ProtectedRoute>
-        }
-      />
+      {/* Default redirect */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* Placeholder routes - will implement later */}
-      <Route path="/projects" element={<ProtectedRoute><MainLayout><div className="p-6">Projects Page Coming Soon...</div></MainLayout></ProtectedRoute>} />
-      <Route path="/ranking" element={<ProtectedRoute><MainLayout><div className="p-6">Rankings Page Coming Soon...</div></MainLayout></ProtectedRoute>} />
-      <Route path="/risks" element={<ProtectedRoute><MainLayout><div className="p-6">Risks Page Coming Soon...</div></MainLayout></ProtectedRoute>} />
-      <Route path="/decisions" element={<ProtectedRoute><MainLayout><div className="p-6">Decisions Page Coming Soon...</div></MainLayout></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><MainLayout><div className="p-6">Settings Page Coming Soon...</div></MainLayout></ProtectedRoute>} />
+      {/* Main App Layout */}
+      <Route element={<MainLayout />}>
+  <Route path="/dashboard" element={<PortfolioDashboard />} />
+  <Route path="/ranking" element={<ProjectRanking />} />
+  <Route path="/risks" element={<RiskOverview />} />
+  <Route path="/decisions" element={<DecisionLog />} />
 
-      <Route path="/" element={<Navigate to="/dashboard" />} />
+  <Route path="/projects" element={<ProjectList />} />
+  <Route path="/projects/:id" element={<ProjectDetails />} />
+  <Route path="/projects/:id/simulate" element={<ProjectSimulation />} />
+</Route>
+
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
