@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Role Management
+model User {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  role          Role           @default(PROJECT_MANAGER)
+  createdAt     DateTime       @default(now())
+  
+  projects      Project[]      @relation("ProjectManager")
+  decisions     DecisionLog[]
+}
+
+enum Role {
+  ADMIN
+  EXECUTIVE
+  PORTFOLIO_MANAGER
+  PROJECT_MANAGER
+}
+
+// 2. Core Project Baseline
+model Project {
+  id                   String          @id @default(uuid())
+  name                 String
+  description          String?
+  status               ProjectStatus   @default(PROPOSED)
+  allocatedBudget      Float
+  expectedDurationDays Int
+  strategicValueScore  Int             // 1 to 10
+  priorityLevel        Priority        @default(MEDIUM)
+  
+  managerId            String
+  manager              User            @relation("ProjectManager", fields: [managerId], references: [id])
+  
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  updates              ProjectUpdate[]
+  risks                Risk[]
+  decisions            DecisionLog[]
+}
+
+enum ProjectStatus {
+  PROPOSED
+  ACTIVE
+  ON_HOLD
+  CANCELLED
+  COMPLETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// 3. Weekly Execution Data (Crucial for Health Score & Prediction)
+model ProjectUpdate {
+  id               String   @id @default(uuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id])
+  
+  updateDate       DateTime @default(now())
+  progressPercent  Float    // 0 to 100
+  actualCostSpent  Float
+  daysElapsed      Int
+  
+  computedHealth   Float?   // 0 to 100
+}
+
+// 4. Risk Radar System
+model Risk {
+  id          String     @id @default(uuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id])
+  
+  title       String
+  description String?
+  status      RiskStatus @default(OPEN)
+  probability Int        // 1 to 5
+  impact      Int        // 1 to 5
+  createdAt   DateTime   @default(now())
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATED
+}
+
+// 5. Governance & Audit Log
+model DecisionLog {
+  id             String       @id @default(uuid())
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id])
+  
+  decidedById    String
+  decidedBy      User         @relation(fields: [decidedById], references: [id])
+  
+  decisionType   DecisionType
+  rationale      String       @db.Text
+  timestamp      DateTime     @default(now())
+}
+
+enum DecisionType {
+  CONTINUE
+  PAUSE
+  STOP
+  ACCELERATE
+  REPLAN
+}
