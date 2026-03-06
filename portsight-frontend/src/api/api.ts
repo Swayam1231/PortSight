@@ -7,12 +7,16 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// Define our API functions
 export const projectAPI = {
-  // Get all projects for the dashboard
+  // Get all projects
   getAllProjects: async () => {
     const response = await apiClient.get('/projects');
+    return response.data;
+  },
+  
+  // Get a single project
+  getProjectById: async (id: string) => {
+    const response = await apiClient.get(`/projects/${id}`);
     return response.data;
   },
   
@@ -20,7 +24,16 @@ export const projectAPI = {
   createProject: async (projectData: any) => {
     const response = await apiClient.post('/projects', projectData);
     return response.data;
+  },
+  // Get all governance decisions
+  getDecisionLog: async () => {
+    const response = await apiClient.get('/projects/global/decisions');
+    return response.data;
+  },
+
+  // Save a new decision
+  logDecision: async (projectId: string, decisionData: any) => {
+    const response = await apiClient.post(`/projects/${projectId}/decisions`, decisionData);
+    return response.data;
   }
 };
-
-export default apiClient;
