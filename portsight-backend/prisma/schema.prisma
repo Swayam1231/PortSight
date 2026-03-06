@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // 1. Role Management
@@ -35,7 +36,8 @@ model Project {
   status               ProjectStatus   @default(PROPOSED)
   allocatedBudget      Float
   expectedDurationDays Int
-  strategicValueScore  Int             // 1 to 10
+  teamSize             Int             @default(5)  // <-- NEW FIELD
+  strategicValueScore  Int             
   priorityLevel        Priority        @default(MEDIUM)
   
   managerId            String

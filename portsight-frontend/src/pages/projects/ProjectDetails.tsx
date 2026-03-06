@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Target, Calendar, User, ShieldAlert, Activity } from 'lucide-react';
 import { projectAPI } from '../../api/api';
 import StatusBadge from '../../components/common/StatusBadge';
 import ProjectSimulator from '../../components/intelligence/ProjectSimulator';
+import { ArrowLeft, Target, Calendar, User, ShieldAlert, Activity, Users } from 'lucide-react';
 
 export default function ProjectDetails() {
   const { id } = useParams(); // Gets the ID from the URL
@@ -60,15 +60,22 @@ export default function ProjectDetails() {
               <Activity className="text-blue-500" /> Execution Metrics
             </h3>
             
-            <div className="grid grid-cols-2 gap-6">
+            {/* Change this to grid-cols-3 */}
+            <div className="grid grid-cols-3 gap-6">
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 mb-1"><Target size={14}/> Budget Allocated</p>
+                <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 mb-1"><Target size={14}/> Budget</p>
                 <p className="text-2xl font-black text-gray-800">${project.allocatedBudget.toLocaleString()}</p>
               </div>
               
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
                 <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 mb-1"><Calendar size={14}/> Timeline</p>
                 <p className="text-2xl font-black text-gray-800">{project.expectedDurationDays} Days</p>
+              </div>
+
+              {/* NEW TEAM SIZE BOX */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 mb-1"><Users size={14}/> Team</p>
+                <p className="text-2xl font-black text-gray-800">{project.teamSize || 0} People</p>
               </div>
             </div>
           </div>

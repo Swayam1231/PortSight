@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, FastForward, DollarSign, Clock } from 'lucide-react';
+import { Activity, FastForward, DollarSign, Clock, Users } from 'lucide-react';
 import { projectAPI } from '../../api/api';
 
 interface ProjectSimulatorProps {
@@ -7,9 +7,10 @@ interface ProjectSimulatorProps {
 }
 
 export default function ProjectSimulator({ project }: ProjectSimulatorProps) {
-  // State for the sliders
+  // State for the sliders (now allowing negative numbers!)
   const [addedBudget, setAddedBudget] = useState(0);
   const [addedDays, setAddedDays] = useState(0);
+  const [addedTeam, setAddedTeam] = useState(0);
   
   // State for the prediction outputs
   const [predictedHealth, setPredictedHealth] = useState(0);
@@ -17,36 +18,45 @@ export default function ProjectSimulator({ project }: ProjectSimulatorProps) {
 
   // Calculate Base Health on load
   useEffect(() => {
-    const totalRisk = project.risks.reduce((sum: number, r: any) => sum + (r.probability * r.impact), 0);
-    // Base formula: (Value * 10) - Total Risk
+    const totalRisk = project.risks?.reduce((sum: number, r: any) => sum + (r.probability * r.impact), 0) || 0;
     const initialHealth = Math.max(0, Math.min(100, (project.strategicValueScore * 10) - totalRisk));
     setBaseHealth(initialHealth);
     setPredictedHealth(initialHealth);
   }, [project]);
 
-  // The AI Predictive Algorithm (runs whenever sliders move)
+  // The AI Predictive Algorithm (handles positive AND negative scenarios)
   useEffect(() => {
-    // Injecting budget improves health (allows hiring more people, buying better tools)
-    const budgetBoost = (addedBudget / 50000) * 5; // +5 health points per $50k
-    
-    // Extending the deadline reduces timeline pressure/risk, improving health
-    const timeBoost = (addedDays / 14) * 2; // +2 health points per 2 weeks added
-    
-    // If they add WAY too much time, it actually hurts health (bloat/delay)
-    const timePenalty = addedDays > 60 ? ((addedDays - 60) / 30) * -3 : 0;
+    // Budget: +5 health per $50k added, -5 health per $50k cut
+    const budgetBoost = (addedBudget / 50000) * 5; 
 
-    const newHealth = Math.max(0, Math.min(100, baseHealth + budgetBoost + timeBoost + timePenalty));
+    // Time: More time = less pressure (+ health). Less time = rushed deadline (- health).
+    const timeBoost = (addedDays / 14) * 2; 
+
+    // Team: Hiring helps, losing people hurts
+    const teamBoost = (addedTeam / 2) * 3; 
+    
+    // Complex Penalties
+    const teamChaosPenalty = addedTeam > 10 ? -5 : 0; // Too many new people = chaos
+    const teamLossPenalty = addedTeam <= -(project.teamSize / 2) ? -15 : 0; // Catastrophic penalty if half the team leaves!
+    const timeBloatPenalty = addedDays > 60 ? ((addedDays - 60) / 30) * -3 : 0; // Too much time = bloat
+
+    const newHealth = Math.max(0, Math.min(100, 
+      baseHealth + budgetBoost + timeBoost + teamBoost + teamChaosPenalty + teamLossPenalty + timeBloatPenalty
+    ));
     setPredictedHealth(Math.round(newHealth));
-  }, [addedBudget, addedDays, baseHealth]);
+  }, [addedBudget, addedDays, addedTeam, baseHealth, project.teamSize]); 
 
-  // Determine color of the prediction circle
-  const getHealthColor = (score: number) => {
-    if (score >= 75) return 'text-emerald-500 border-emerald-500';
-    if (score >= 50) return 'text-amber-500 border-amber-500';
-    return 'text-red-500 border-red-500';
-  };
+  // Formatters for the UI so negative numbers look pretty (-$50,000 instead of +$-50,000)
+  const formatCurrency = (val: number) => val === 0 ? '$0' : val > 0 ? `+$${val.toLocaleString()}` : `-$${Math.abs(val).toLocaleString()}`;
+  const formatNum = (val: number, suffix: string) => val === 0 ? `0 ${suffix}` : val > 0 ? `+${val} ${suffix}` : `${val} ${suffix}`;
+  const getHealthColor = (score: number) => score >= 75 ? 'text-emerald-500 border-emerald-500' : score >= 50 ? 'text-amber-500 border-amber-500' : 'text-red-500 border-red-500';
 
   const improvement = predictedHealth - baseHealth;
+
+  // Maximum limits for cuts (cannot cut more budget/team than the project currently has)
+  const maxBudgetCut = -(project.allocatedBudget || 100000);
+  const maxTimeCut = -(project.expectedDurationDays ? project.expectedDurationDays - 1 : 30); // Leave at least 1 day
+  const maxTeamCut = -(project.teamSize || 0);
 
   return (
     <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 text-white overflow-hidden mt-8">
@@ -58,47 +68,68 @@ export default function ProjectSimulator({ project }: ProjectSimulatorProps) {
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Side: The Sliders */}
         <div className="space-y-6">
-          <p className="text-sm text-slate-400 mb-4">Simulate management interventions to see the predicted outcome on project health.</p>
+          <p className="text-sm text-slate-400 mb-4">Simulate the impact of resource injections, budget cuts, and deadline shifts.</p>
           
+          {/* 1. Budget Slider */}
           <div>
             <div className="flex justify-between text-sm mb-2 font-semibold">
-              <span className="flex items-center gap-1"><DollarSign size={16} className="text-emerald-400"/> Inject Budget</span>
-              <span className="text-emerald-400">+${addedBudget.toLocaleString()}</span>
+              <span className="flex items-center gap-1"><DollarSign size={16} className={addedBudget >= 0 ? "text-emerald-400" : "text-red-400"}/> Adjust Budget</span>
+              <span className={addedBudget >= 0 ? "text-emerald-400" : "text-red-400"}>{formatCurrency(addedBudget)}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
+              min={maxBudgetCut} 
               max="500000" 
               step="10000" 
               value={addedBudget}
               onChange={(e) => setAddedBudget(Number(e.target.value))}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer ${addedBudget >= 0 ? 'accent-emerald-500' : 'accent-red-500'}`}
             />
           </div>
 
+          {/* 2. Timeline Slider */}
           <div>
             <div className="flex justify-between text-sm mb-2 font-semibold">
-              <span className="flex items-center gap-1"><Clock size={16} className="text-blue-400"/> Extend Timeline</span>
-              <span className="text-blue-400">+{addedDays} Days</span>
+              <span className="flex items-center gap-1"><Clock size={16} className={addedDays >= 0 ? "text-blue-400" : "text-red-400"}/> Adjust Deadline</span>
+              <span className={addedDays >= 0 ? "text-blue-400" : "text-red-400"}>{formatNum(addedDays, 'Days')}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
+              min={maxTimeCut} 
               max="120" 
               step="7" 
               value={addedDays}
               onChange={(e) => setAddedDays(Number(e.target.value))}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer ${addedDays >= 0 ? 'accent-blue-500' : 'accent-red-500'}`}
+            />
+          </div>
+
+          {/* 3. Team Size Slider */}
+          <div>
+            <div className="flex justify-between text-sm mb-2 font-semibold">
+              <span className="flex items-center gap-1"><Users size={16} className={addedTeam >= 0 ? "text-purple-400" : "text-red-400"}/> Adjust Team Size</span>
+              <span className={addedTeam >= 0 ? "text-purple-400" : "text-red-400"}>{formatNum(addedTeam, 'People')}</span>
+            </div>
+            <input 
+              type="range" 
+              min={maxTeamCut} 
+              max="20" 
+              step="1" 
+              value={addedTeam}
+              onChange={(e) => setAddedTeam(Number(e.target.value))}
+              className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer ${addedTeam >= 0 ? 'accent-purple-500' : 'accent-red-500'}`}
             />
           </div>
 
           <button 
             onClick={async () => {
               try {
+                // Change decision type based on if we are mostly cutting or adding
+                const isNegative = addedBudget < 0 || addedDays < 0 || addedTeam < 0;
                 await projectAPI.logDecision(project.id, {
-                  userId: project.managerId, // Simulating the manager making the call
-                  decisionType: addedBudget > 0 ? 'ACCELERATE' : 'REPLAN',
-                  rationale: `Simulated intervention: Added $${addedBudget.toLocaleString()} budget and extended timeline by ${addedDays} days to improve health by ${improvement} points.`
+                  userId: project.managerId, 
+                  decisionType: isNegative ? 'REPLAN' : 'ACCELERATE',
+                  rationale: `Simulated intervention: Adjusted budget by ${formatCurrency(addedBudget)}, timeline by ${formatNum(addedDays, 'days')}, and team size by ${formatNum(addedTeam, 'people')}. Resulted in a ${Math.abs(improvement)} point health ${improvement >= 0 ? 'increase' : 'decrease'}.`
                 });
                 alert('✅ Decision successfully recorded in the Governance Audit Log!');
               } catch (error) {
